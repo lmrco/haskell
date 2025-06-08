@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # haskell
 =======
 # Haskell
@@ -100,6 +99,3 @@ This project includes a powerful `Makefile` and Docker-based CI pipeline to stre
 Haddock-generated API documentation is published per branch:
 
 - [View docs for `main`](https://<your-username>.github.io/<your-repo>/main/)
-
-> Replace `main` with your branch name to view docs from other branches (e.g. `/dev`, `/feature-x`)
->>>>>>> 62460d3 (Haskell Project Scaffold with CI/CD, Tests, Linting, and Docs)
