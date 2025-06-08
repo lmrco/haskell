@@ -1,5 +1,3 @@
-# haskell
-=======
 # Haskell
 
 [![Haskell CI](https://github.com/<your-username>/<your-repo>/actions/workflows/haskell.yml/badge.svg)](https://github.com/<your-username>/<your-repo>/actions/workflows/haskell.yml)
