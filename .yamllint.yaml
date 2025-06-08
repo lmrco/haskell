@@ -1,0 +1,12 @@
+extends: default
+
+ignore:
+  - docs/
+  - dist-newstyle/
+
+rules:
+  document-start: disable
+  line-length:
+    max: 120
+    level: warning
+  truthy: disable
