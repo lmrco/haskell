@@ -1,0 +1,77 @@
+cabal-version:       3.0
+name:                haskell
+version:             0.1.0.0
+license:             MIT
+license-file:        LICENSE
+author:              Luca Marrocco
+build-type:          Simple
+
+-- ========================
+-- 📚 Library
+-- ========================
+library
+  exposed-modules:     MyLib
+  hs-source-dirs:      src
+  build-depends:       base
+  default-language:    Haskell2010
+
+-- ========================
+-- 🧪 Unit Tests
+-- ========================
+test-suite haskell-test
+  type:                exitcode-stdio-1.0
+  main-is:             LibrarySpec.hs
+  hs-source-dirs:      test
+  build-depends:       base
+                     , haskell
+                     , hspec
+                     , tasty
+                     , tasty-hspec
+                     , tasty-ant-xml
+                     , QuickCheck
+  default-language:    Haskell2010
+
+-- ========================
+-- 🚀 Executable Server
+-- ========================
+executable haskell-server
+  main-is:             Main.hs
+  hs-source-dirs:      app
+  build-depends:       base
+                     , haskell
+                     , scotty
+                     , warp
+                     , wreq
+                     , lens
+                     , aeson
+                     , text
+                     , containers
+  default-language:    Haskell2010
+
+-- ========================
+-- 🧪 Integration Tests
+-- ========================
+test-suite haskell-test-it
+  type:                exitcode-stdio-1.0
+  main-is:             ServerSpec.hs
+  hs-source-dirs:      test
+  build-depends:       base
+                     , haskell
+                     , hspec
+                     , tasty
+                     , tasty-hspec
+                     , async
+                     , process
+                     , lens
+                     , lens-aeson
+                     , wreq
+                     , text
+                     , containers
+                     , network
+                     , warp
+                     , aeson
+                     , http-client
+                     , http-types
+                     , wai
+                     , bytestring
+  default-language:    Haskell2010

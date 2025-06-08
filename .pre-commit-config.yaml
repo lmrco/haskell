@@ -15,7 +15,7 @@ repos:
 
       - id: haskell-tests
         name: run haskell test suite
-        entry: bash -c 'cabal run my-haskell-lib-test'
+        entry: bash -c 'cabal run haskell-test'
         language: system
         pass_filenames: false
 

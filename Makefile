@@ -48,12 +48,20 @@ build:
 
 test:
 	@echo "🧪 Running tests (console output only)"
-	cabal run my-haskell-lib-test
+	cabal run haskell-test
+
+test-it:
+	@echo "🧪 Running integration tests"
+	cabal run haskell-test-it
 
 test-report:
 	@echo "🧪 Running tests and generating JUnit XML report"
 	mkdir -p test-reports
-	TASTY_ANT_XML=$(TEST_REPORT_FILE) cabal run my-haskell-lib-test -- --xml=$(TEST_REPORT_FILE)
+	TASTY_ANT_XML=$(TEST_REPORT_FILE) cabal run haskell-test -- --xml=$(TEST_REPORT_FILE)
+
+run:
+	@echo "🏃 Running server locally"
+	cabal run haskell-server
 
 # --------------------------------------
 # 🧹 Quality Checks
@@ -88,13 +96,13 @@ haddock:
 
 docs: haddock
 	@echo "📁 Locating and opening Haddock documentation..."
-	DOCS_DIR=$$(find dist-newstyle/build -type d -path "*/doc/html/*" -name my-haskell-lib) && \
+	DOCS_DIR=$$(find dist-newstyle/build -type d -path "*/doc/html/*" -name haskell) && \
 	xdg-open $$DOCS_DIR/index.html || open $$DOCS_DIR/index.html || true
 
 publish-docs: haddock
 	@echo "🚀 Publishing docs for branch '$(BRANCH_NAME)' to GitHub Pages"
 	mkdir -p generated-docs
-	DOCS_PATH=$(find dist-newstyle/build -type d -path "*/doc/html/*" -name my-haskell-lib | head -n 1)
+	DOCS_PATH=$(find dist-newstyle/build -type d -path "*/doc/html/*" -name haskell | head -n 1)
 	if [ -z "$$DOCS_PATH" ]; then
 	    @echo "❌ Failed to locate generated docs. Run 'make haddock' first."
 	    exit 1
@@ -162,3 +170,13 @@ docker-run:
 		-w /app \
 		$(IMAGE_NAME):$(BUILD_IMAGE_TAG) \
 		bash
+
+docker-server:
+	@echo "🐋 Building and starting server inside Docker..."
+	docker build --target prod -t haskell-server . && \
+	docker run --rm -p 8080:8080 --name haskell-server haskell-server
+
+docker-test-it:
+	@echo "🧪 Running integration tests in Docker..."
+	docker build --target test -t haskell-test-it . && \
+	docker run --rm --network host haskell-test-it 2>&1 | tee test-output.log

@@ -6,7 +6,7 @@ on:
       - 'main'
     paths:
       - 'src/**'
-      - 'my-haskell-lib.cabal'
+      - 'haskell.cabal'
       - '.github/workflows/github-ci.yml'
 
 jobs:
@@ -44,7 +44,7 @@ jobs:
       - name: 📂 Copy generated docs
         run: |
           mkdir -p generated-docs
-          DOCS_PATH=$(find dist-newstyle/build -type d -path "*/doc/html/*" -name my-haskell-lib | head -n 1)
+          DOCS_PATH=$(find dist-newstyle/build -type d -path "*/doc/html/*" -name haskell | head -n 1)
           if [ -z "$DOCS_PATH" ]; then
             echo "❌ Failed to locate generated docs"
             exit 1

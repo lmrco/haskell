@@ -12,7 +12,7 @@ on:
       - 'src/**'
       - 'test/**'
       - 'Dockerfile'
-      - 'my-haskell-lib.cabal'
+      - 'haskell.cabal'
       - '.github/workflows/haskell.yml'
 
 jobs:
@@ -72,11 +72,14 @@ jobs:
           cabal update
           cabal build all --enable-tests
 
-      - name: 🧪 Run tests and generate JUnit report
+      - name: 🧪 Run Unit tests and Report
         run: |
           mkdir -p "${TEST_REPORT_DIR}"
           TASTY_ANT_XML="${TEST_REPORT_FILE}" \
-          cabal run my-haskell-lib-test -- --xml="${TEST_REPORT_FILE}"
+          cabal run haskell-test -- --xml="${TEST_REPORT_FILE}"
+
+      - name: 🧪 Run integration test
+        run: cabal run haskell-test-it
 
       - name: 📤 Upload test report
         uses: actions/upload-artifact@v4
@@ -100,3 +103,6 @@ jobs:
       - name: 🔍 Run static analysis (HLint)
         run: |
           hlint src/ test/
+
+      - name: 🧪 Run Integration tests Report
+        run: docker build --target tester -t haskell-test .
