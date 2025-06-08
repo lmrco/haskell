@@ -1,0 +1,27 @@
+repos:
+  - repo: local
+    hooks:
+      - id: fourmolu-format
+        name: fourmolu format check
+        entry: bash -c 'find src test -name "*.hs" | xargs fourmolu --mode check'
+        language: system
+        types: [haskell]
+
+      - id: hlint
+        name: hlint static analysis
+        entry: hlint src test
+        language: system
+        types: [haskell]
+
+      - id: haskell-tests
+        name: run haskell test suite
+        entry: bash -c 'cabal run my-haskell-lib-test'
+        language: system
+        pass_filenames: false
+
+      - id: fourmolu-autoformat
+        name: fourmolu auto format
+        entry: bash -c 'find src test -name "*.hs" | xargs fourmolu --mode inplace'
+        language: system
+        pass_filenames: false
+        stages: [manual]
