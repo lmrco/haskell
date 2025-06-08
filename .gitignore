@@ -1,0 +1,123 @@
+# ----------------------------
+# Haskell & Cabal build artifacts
+# ----------------------------
+dist/
+dist-newstyle/
+.cabal-bin/
+.cabal-sandbox/
+cabal.sandbox.config
+cabal.project.local
+cabal.project.local~
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+*.prof
+*.aux
+*.hp
+*.eventlog
+*.tix
+*.dump*
+*.chi
+*.chix
+*.hie
+*.svg
+
+# ----------------------------
+# Stack (if used later)
+# ----------------------------
+.stack-work/
+.stack/
+
+# ----------------------------
+# GHC & GHCi
+# ----------------------------
+.ghc.environment.*
+.ghci
+*.ghci
+.ghc.remote.*.lock
+
+# ----------------------------
+# Test reports and coverage
+# ----------------------------
+test-reports/
+test-results/
+junit.xml
+coverage/
+
+# ----------------------------
+# Haddock / documentation
+# ----------------------------
+generated-docs/
+haddock-html/
+docs/
+doc/
+.haddock/
+_build/
+_site/
+
+# ----------------------------
+# GitHub Pages
+# ----------------------------
+gh-pages/
+
+# ----------------------------
+# Logs and temp files
+# ----------------------------
+*.log
+*.tmp
+*.bak
+*~
+*.sqlite3
+*.sqlitedb
+
+# ----------------------------
+# Editor / IDE config
+# ----------------------------
+.vscode/
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ----------------------------
+# Formatter / linter cache
+# ----------------------------
+.fourmolu.yaml
+.fourmolu-cache/
+.hlint.yaml
+.hlint.yml
+.hlint.hs
+
+# ----------------------------
+# Environment variables
+# ----------------------------
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# ----------------------------
+# Node & NPM (e.g. gh-pages CLI)
+# ----------------------------
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# ----------------------------
+# Python / Pre-commit
+# ----------------------------
+.venv/
+.pre-commit-config.yaml~
+.pre-commit-hooks.yaml
+.pre-commit-cache/
+
+# ----------------------------
+# Makefile-related
+# ----------------------------
+Makefile.local

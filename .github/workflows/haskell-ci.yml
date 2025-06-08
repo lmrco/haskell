@@ -1,0 +1,102 @@
+name: 🧪 Haskell CI
+
+on:
+  push:
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - '**'
+    paths:
+      - '.env'
+      - 'src/**'
+      - 'test/**'
+      - 'Dockerfile'
+      - 'my-haskell-lib.cabal'
+      - '.github/workflows/haskell.yml'
+
+jobs:
+  get-build-tag:
+    name: 🧠 Calculate Build Image Tag
+    runs-on: ubuntu-latest
+    outputs:
+      BUILD_IMAGE_TAG: ${{ steps.hash.outputs.BUILD_IMAGE_TAG }}
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔍 Calculate Cababl Freeze Hash
+        id: hash
+        run: |
+          BUILD_IMAGE_TAG=$(sha256sum cabal.project.freeze | cut -c1-64)
+          echo "BUILD_IMAGE_TAG=$BUILD_IMAGE_TAG" >> $GITHUB_ENV
+          echo "BUILD_IMAGE_TAG=$BUILD_IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  build-and-test:
+    name: 🛠️ Build and Test Haskell
+    runs-on: ubuntu-latest
+    needs: get-build-tag
+    container:
+      image: ghcr.io/lmrco/haskell:${{ needs.get-build-tag.outputs.BUILD_IMAGE_TAG }}
+    env:
+      GHC_VERSION: "9.8.2"
+      CABAL_VERSION: "3.10.2.0"
+      TEST_REPORT_DIR: test-reports
+      TEST_REPORT_FILE: test-reports/hspec-results.xml
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ♻️ Export CI environment variables
+        run: |
+          source .env || true
+          echo "GHC_VERSION=$GHC_VERSION" >> "$GITHUB_ENV"
+          echo "CABAL_VERSION=$CABAL_VERSION" >> "$GITHUB_ENV"
+          echo "TEST_REPORT_DIR=$TEST_REPORT_DIR" >> "$GITHUB_ENV"
+          echo "TEST_REPORT_FILE=$TEST_REPORT_FILE" >> "$GITHUB_ENV"
+          echo "BUILD_IMAGE_TAG=$(sha256sum cabal.project.freeze | cut -c1-64)" >> $GITHUB_ENV
+        shell: bash
+
+      - name: 💾 Cache Cabal build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-cabal-${{ needs.get-build-tag.outputs.BUILD_IMAGE_TAG }}
+          restore-keys: |
+            ${{ runner.os }}-cabal-
+
+      - name: 📦 Install project dependencies
+        run: |
+          cabal update
+          cabal build all --enable-tests
+
+      - name: 🧪 Run tests and generate JUnit report
+        run: |
+          mkdir -p "${TEST_REPORT_DIR}"
+          TASTY_ANT_XML="${TEST_REPORT_FILE}" \
+          cabal run my-haskell-lib-test -- --xml="${TEST_REPORT_FILE}"
+
+      - name: 📤 Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ${{ env.TEST_REPORT_FILE }}
+
+      - name: 🧾 Publish test results to GitHub UI
+        uses: mikepenz/action-junit-report@v4
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        with:
+          report_paths: ${{ env.TEST_REPORT_FILE }}
+          include_passed: true
+          
+      - name: 🎨 Check code formatting (Fourmolu)
+        run: |
+          find src/ test/ -name '*.hs' | xargs fourmolu --mode check
+
+      - name: 🔍 Run static analysis (HLint)
+        run: |
+          hlint src/ test/

@@ -1,0 +1,8 @@
+.git
+.github
+.vscode
+.stack-work
+dist-newstyle
+tmp
+*.tar.gz
+*.swp
