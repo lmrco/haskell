@@ -1,0 +1,9 @@
+version: '3.9'
+
+services:
+  haskell-ci:
+    image: ghcr.io/lmrco/haskell:latest
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: make ci
