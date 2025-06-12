@@ -103,12 +103,12 @@ lint:
 # Check code formatting using Fourmolu
 .PHONY: format-check
 format-check:
-	find src/ test/ -name '*.hs' | xargs fourmolu --mode check
+	find app/ src/ test/ -name '*.hs' | xargs fourmolu --mode check
 
 # Format the codebase using Fourmolu
 .PHONY: format
 format:
-	find src/ test/ -name '*.hs' | xargs fourmolu --mode inplace
+	find app/ src/ test/ -name '*.hs' | xargs fourmolu --mode inplace
 
 # YAML Linting
 .PHONY: yamllint

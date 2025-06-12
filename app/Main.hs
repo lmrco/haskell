@@ -2,12 +2,11 @@
 
 module Main where
 
-import Web.Scotty
 import Network.Wai.Handler.Warp (run)
+import Web.Scotty
 
 main :: IO ()
 main = do
-  putStrLn "🚀 Starting server on port 8080"
-  scotty 8080 $ do
-    get "/"       $ text "OK"
-    get "/health" $ text "OK"
+    putStrLn "🚀 Starting server on port 8080"
+    scotty 8080 $ do
+        get "/health" $ text "OK"
