@@ -1,0 +1,17 @@
+{
+  "name": "Haskell, Cardano & Plinth Development",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "haskell-base",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "haskell.haskell"
+      ],
+      "settings": {
+        "haskell.formattingProvider": "fourmolu"
+      }
+    }
+  }
+}

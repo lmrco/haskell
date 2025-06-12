@@ -1,0 +1,14 @@
+version: "3.5"
+volumes:
+  node-db:
+  node-ipc:
+services:
+  haskell:
+    image: haskell/haskell-base:0.0.1.3
+    volumes:
+      # Mounts the project folder to '/workspace'. The target path inside the container
+      # should match what your application expects. In this case, the compose file is
+      # in a sub-folder, so you will mount '..'. You would then reference this path as the
+      # 'workspaceFolder' in '.devcontainer/devcontainer.json' so VS Code starts here.
+      - ..:/workspace
+

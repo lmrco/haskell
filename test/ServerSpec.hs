@@ -8,10 +8,22 @@ import Data.Aeson (object, (.=))
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Network.HTTP.Client (HttpException, HttpExceptionContent (StatusCodeException))
 import Network.Wreq
-import Test.Hspec
+import System.Environment (lookupEnv, withArgs)
+import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.QuickCheck (property)
+import Test.Tasty
+import Test.Tasty.Hspec
+import Test.Tasty.Runners.AntXML (antXMLRunner)
 
 main :: IO ()
-main = hspec spec
+main = do
+    testTree <- testSpec "Library tests" spec
+    -- Look for the TASTY_ANT_XML environment variable
+    mXmlPath <- lookupEnv "TASTY_ANT_XML"
+    let ingredients = maybe defaultIngredients (const [antXMLRunner]) mXmlPath
+        args = maybe [] (\path -> ["--xml=" ++ path]) mXmlPath
+    -- Run tests with XML output if TASTY_ANT_XML is set
+    withArgs args $ defaultMainWithIngredients ingredients testTree
 
 spec :: Spec
 spec = describe "HTTP API" $ do
@@ -39,4 +51,20 @@ spec = describe "HTTP API" $ do
             Right res -> do
                 res ^. responseStatus . statusCode `shouldBe` 200
                 res ^. responseBody `shouldBe` "{\"result\":2}"
+            Left err -> throwIO err
+
+    -- Test the sum endpoint with valid input
+    it "POST /lovelace {quantity: 123456789} should return {lovelace: 123456789}" $ do
+        let payload = object ["quantity" .= (123456789 :: Int)]
+        result <-
+            try $
+                postWith
+                    (defaults & header "Content-Type" .~ ["application/json"])
+                    "http://localhost:8080/lovelace"
+                    payload ::
+                IO (Either HttpException (Response LBS.ByteString))
+        case result of
+            Right res -> do
+                res ^. responseStatus . statusCode `shouldBe` 200
+                res ^. responseBody `shouldBe` "{\"lovelace\":123456789}"
             Left err -> throwIO err

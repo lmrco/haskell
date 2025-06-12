@@ -24,10 +24,16 @@ spec :: Spec
 spec = do
     describe "sumTwo" $ do
         it "adds two numbers correctly" $ do
-            sumTwo 1 2 `shouldBe` 3
             sumTwo 0 0 `shouldBe` 0
+            sumTwo 0 1 `shouldBe` 1
+            sumTwo 1 1 `shouldBe` 2
+            sumTwo 1 2 `shouldBe` 3
             sumTwo (-1) 1 `shouldBe` 0
 
         it "is commutative: x + y == y + x" $
             property $
                 \x y -> sumTwo x y == sumTwo y (x :: Int)
+
+        it "is associative: (x + y) + z == x + (y + z)" $
+            property $
+                \x y z -> sumTwo (sumTwo x y) z == sumTwo x (sumTwo y z)
