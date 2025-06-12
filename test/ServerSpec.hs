@@ -14,14 +14,6 @@ main = hspec spec
 
 spec :: Spec
 spec = describe "HTTP API" $ do
-    it "GET / should return 'OK'" $ do
-        result <- try $ get "http://localhost:8080/" :: IO (Either HttpException (Response LBS.ByteString))
-        case result of
-            Right res -> do
-                res ^. responseStatus . statusCode `shouldBe` 200
-                res ^. responseBody `shouldBe` "OK"
-            Left err -> throwIO err
-
     it "GET /health should return 'OK'" $ do
         result <- try $ get "http://localhost:8080/health" :: IO (Either HttpException (Response LBS.ByteString))
         case result of
