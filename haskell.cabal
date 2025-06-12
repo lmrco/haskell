@@ -1,0 +1,88 @@
+cabal-version: 3.0
+name:          haskell
+version:       0.0.1.1
+license:       MIT
+license-file:  LICENSE
+author:        Luca Marrocco
+build-type:    Simple
+tested-with:   GHC==9.8.2
+
+-- ========================
+-- 📚 Library
+-- ========================
+
+library
+  exposed-modules:  MyLib
+  hs-source-dirs:   src
+  build-depends:    base
+  default-language: Haskell2010
+
+-- ========================
+-- 🧪 Unit Tests
+-- ========================
+
+test-suite haskell-unit-tests
+  type:             exitcode-stdio-1.0
+  main-is:          LibrarySpec.hs
+  hs-source-dirs:   test
+  build-depends:
+    , base
+    , haskell
+    , hspec
+    , QuickCheck
+    , tasty
+    , tasty-ant-xml
+    , tasty-hspec
+
+  default-language: Haskell2010
+
+-- ========================
+-- 🚀 Executable Server
+-- ========================
+
+executable haskell-server
+  main-is:          Main.hs
+  hs-source-dirs:   app
+  build-depends:
+    , aeson
+    , base
+    , containers
+    , haskell
+    , lens
+    , scotty
+    , text
+    , warp
+    , wreq
+
+  default-language: Haskell2010
+
+-- ========================
+-- 🧪 Integration Tests
+-- ========================
+
+test-suite haskell-integration-tests
+  type:             exitcode-stdio-1.0
+  main-is:          ServerSpec.hs
+  hs-source-dirs:   test
+  build-depends:
+    , aeson
+    , async
+    , base
+    , bytestring
+    , containers
+    , haskell
+    , hspec
+    , http-client
+    , http-types
+    , lens
+    , lens-aeson
+    , network
+    , process
+    , tasty
+    , tasty-hspec
+    , text
+    , wai
+    , warp
+    , wreq
+
+  default-language: Haskell2010

@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: fourmolu-format
         name: fourmolu format check
-        entry: bash -c 'find src test -name "*.hs" | xargs fourmolu --mode check'
+        entry: bash -c 'find . -name "*.hs" | xargs fourmolu --mode check'
         language: system
         types: [haskell]
 
@@ -13,15 +13,15 @@ repos:
         language: system
         types: [haskell]
 
-      - id: haskell-tests
+      - id: haskell-unit-tests
         name: run haskell test suite
-        entry: bash -c 'cabal run my-haskell-lib-test'
+        entry: bash -c 'cabal run haskell-unit-tests'
         language: system
         pass_filenames: false
 
       - id: fourmolu-autoformat
         name: fourmolu auto format
-        entry: bash -c 'find src test -name "*.hs" | xargs fourmolu --mode inplace'
+        entry: bash -c 'find . -name "*.hs" | xargs fourmolu --mode inplace'
         language: system
         pass_filenames: false
         stages: [manual]
