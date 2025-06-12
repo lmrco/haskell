@@ -1,7 +1,3 @@
-Sure! Here's a clean, well-structured, and professional rewrite of your `README.md` tailored to the Haskell project using `stack`, `Docker`, GitHub & Google registries, and CI-friendly practices:
-
----
-
 # 🧪 Haskell Project Template
 
 A modern Haskell project with:
