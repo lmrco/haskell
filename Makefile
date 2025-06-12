@@ -7,71 +7,77 @@
 -include .env.local
 
 # ----------------------------------------------------------------
-# Configurable Variables
-# ----------------------------------------------------------------
-VERSION 		  ?= $(shell cat VERSION 2>/dev/null || echo '0.0.1.2')
-
-BIN_PATH          ?= bin
-STACK_WORK        ?= .stack-work
-
-GHC_VERSION       ?= 9.8.2
-CABAL_VERSION     ?= 3.10.2.0
-PROJECT_NAME      ?= haskell
-DOCKER_WORKDIR    ?= /app
-
-# Github Container Registry
-GITHUB_REGISTRY   ?= ghcr.io
-GITHUB_PROJECT_ID ?= lmrco
-
-# Google Artifact Registry
-GOOGLE_REPO       ?= docker
-GOOGLE_REGISTRY   ?= europe-west6-docker.pkg.dev
-GOOGLE_PROJECT_ID ?= nimble-repeater-462408-j7
-
-# Docker images
-BASE_IMAGE        := ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-base:${VERSION}
-DEV_IMAGE         := ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-dev:${VERSION}
-LIVE_IMAGE        := ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-live:${VERSION}
-SERVER_IMAGE      := ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-server:${VERSION}
-
-# ----------------------------------------------------------------
 # Platform and architecture detection
 # ----------------------------------------------------------------
 
-OS_NAME := $(shell uname -s)
-ARCH    := $(shell uname -m)
+# Detect the operating system
+OS_NAME := linux
 
-# Normalize values
-ifeq ($(OS_NAME),Darwin)
-    PLATFORM_OS := linux
-else ifeq ($(OS_NAME),Linux)
-    PLATFORM_OS := linux
-else
-    PLATFORM_OS := unknown
-endif
+# Detect the architecture
+ARCH_NAME := $(shell uname -m)
 
-ifeq ($(ARCH),x86_64)
-    PLATFORM_ARCH := amd64
-else ifeq ($(ARCH),arm64)
-    PLATFORM_ARCH := arm64
-else
-    PLATFORM_ARCH := unknown
-endif
+# Combine OS and architecture into a platform string
+PLATFORM := $(OS_NAME)/$(ARCH_NAME)
 
-PLATFORM := $(PLATFORM_OS)/$(PLATFORM_ARCH)
+# Define a list of platforms including the current one and its alternative
+PLATFORMS := $(PLATFORM),$(if $(filter linux/amd64,$(PLATFORM)),linux/arm64,linux/amd64)
 
-OTHER_PLATFORM := $(if $(filter $(PLATFORM),linux/amd64),linux/arm64,linux/amd64)
+# ----------------------------------------------------------------
+# Stack Configuration
+# ----------------------------------------------------------------
+
+STACK = ~/.stack-x86/bin/stack
+
+# ----------------------------------------------------------------
+# Configurable Variables
+# ----------------------------------------------------------------
+VERSION 		  	?= $(shell cat VERSION 2>/dev/null || echo '0.0.1.2')
+
+# Paths
+BIN_PATH          	?= bin
+STACK_WORK        	?= .stack-work
+
+# Haskell toolchain versions
+GHC_VERSION       	?= 8.10.7 # 9.8.2
+CABAL_VERSION     	?= 3.6.2.0 # 3.10.2.0
+PROJECT_NAME      	?= haskell
+DOCKER_WORKDIR    	?= /app
+
+# Github Container Registry
+GITHUB_REGISTRY   	?= ghcr.io
+GITHUB_PROJECT_ID 	?= lmrco
+
+# Google Artifact Registry
+GOOGLE_REPO       	?= docker
+GOOGLE_REGISTRY   	?= europe-west6-docker.pkg.dev
+GOOGLE_PROJECT_ID 	?= nimble-repeater-462408-j7
+
+# Docker image versions
+BASE_IMAGE_VERSION 	= 0.0.1.3
+DEV_IMAGE_VERSION 	= 0.0.1.3
+LIVE_IMAGE_VERSION 	= 0.0.1.1
+SERVER_IMAGE_VERSION = 0.0.1.1
+
+# Docker images
+BASE_IMAGE        	:= ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-base:${BASE_IMAGE_VERSION}
+DEV_IMAGE         	:= ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-dev:${DEV_IMAGE_VERSION}
+LIVE_IMAGE        	:= ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-live:${LIVE_IMAGE_VERSION}
+SERVER_IMAGE      	:= ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-server:${SERVER_IMAGE_VERSION}
 
 # ----------------------------------------------------------------
 # Git metadata (for dynamic tagging)
 # ----------------------------------------------------------------
 
-GIT_TAG        ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)
-GIT_COMMIT     ?= $(shell git rev-parse --short HEAD)
+GIT_TAG        		?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)
+GIT_COMMIT     		?= $(shell git rev-parse --short HEAD)
 
 # Default target: Build, test, lint, and format
 .PHONY: all
-all: build test lint format yamllint
+all: clean build test lint format yamllint
+
+# Download and install Stack
+.PHONY: download
+install: stack-download
 
 # Setup development environment
 .PHONY: setup
@@ -85,7 +91,7 @@ clean: stack-clean
 
 # Build the project
 .PHONY: build
-build: stack-build
+build:
 
 # Install the project binaries locally
 .PHONY: install
@@ -130,40 +136,111 @@ lint-cabal:
 run: stack-run
 
 # ----------------------------------------------------------------
+# Cabal targets
+# ----------------------------------------------------------------
+
+# Setup GHC and Cabal using ghcup
+.PHONY: cabal-setup
+cabal-setup:
+	@echo "🚀 Ensuring ghcup, GHC $(GHC_VERSION), and Cabal $(CABAL_VERSION) are installed..."
+	curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh; \
+	@echo "Installing/Setting GHC $(GHC_VERSION)..."
+	ghcup install ghc $(GHC_VERSION)
+	ghcup set ghc $(GHC_VERSION)
+	@echo "Installing/Setting Cabal $(CABAL_VERSION)..."
+	ghcup install cabal $(CABAL_VERSION)
+	ghcup set cabal $(CABAL_VERSION)
+	@echo "Verifying versions:"
+	ghc --version
+	cabal --version
+	@echo "✅ Cabal setup complete. GHC $(GHC_VERSION) and Cabal $(CABAL_VERSION) should be active."
+
+# Clean build artifacts
+.PHONY: cabal-clean
+cabal-clean:
+	cabal clean
+
+## Update package lists
+#.PHONY: cabal-update
+#cabal-update:
+#	cabal update
+
+# Build all components (library, executables, tests)
+.PHONY: cabal-build
+cabal-build: # cabal-update
+	cabal build all
+
+# Run all test suites
+.PHONY: cabal-test
+cabal-test: cabal-unit-test cabal-integration-test
+
+# Run unit tests
+.PHONY: cabal-unit-test
+cabal-unit-test:
+	cabal test haskell:haskell-unit-tests
+
+# Run integration tests
+.PHONY: cabal-integration-test
+cabal-integration-test:
+	cabal test haskell:haskell-integration-tests
+
+# Run the main executable
+.PHONY: cabal-run
+cabal-run:
+	cabal run haskell-server
+
+# Open a REPL for the library or executable
+.PHONY: cabal-repl
+cabal-repl:
+	cabal repl
+
+# ----------------------------------------------------------------
 # Stack targets
 # ----------------------------------------------------------------
+
+# Download and install Stack
+.PHONY: stack-download
+stack-download:
+	# Download and install Stack for x86_64 macOS
+	curl -L https://github.com/commercialhaskell/stack/releases/download/v2.9.1/stack-2.9.1-osx-x86_64.tar.gz -o /tmp/stack-x86.tar.gz
+	# Extract and move Stack binary to the correct location
+	cd /tmp
+	tar -xvzf stack-x86.tar.gz
+	mkdir -p ~/.stack-x86/bin
+	mv stack-2.9.1-osx-x86_64/stack ~/.stack-x86/bin/stack
+	chmod +x ~/.stack-x86/bin/stack
 
 # Set up GHC and dependencies
 .PHONY: stack-setup
 stack-setup:
-	stack setup
+	arch -x86_64 ${STACK} setup --resolver lts-18.28
 
 # Clean build artifacts
 .PHONY: stack-clean
 stack-clean:
-	stack clean
+	${STACK} clean
 
 # Build the project
 .PHONY: stack-build
 stack-build:
-	stack build
+	arch -x86_64 ${STACK} build
 
 # Build the project with Docker
 .PHONY: stack-build-docker
 stack-build-docker:
-	docker run --platform=linux/arm64 --rm -it -v /Users/lmarrocco/Workspace/haskell:/app -w /app ${DEV_IMAGE} stack build --allow-different-user
+	docker run --platform=linux/amd64 --rm -it -v /Users/lmarrocco/Workspace/haskell:/app -w /app ${DEV_IMAGE} stack build
 	mkdir -p ${BIN_PATH}
 	cp ./.stack-work/dist/aarch64-linux-tinfo6/ghc-9.2.7/build/haskell-server/haskell-server ${BIN_PATH}/haskell-server ${BIN_PATH}/haskell-server
 
 # Install the project binaries to a local directory
 .PHONY: stack-install
 stack-install:
-	stack install --local-bin-path=$(BIN_PATH)
+	${STACK} install --local-bin-path=$(BIN_PATH)
 
 # Run the application server
 .PHONY: stack-run
 stack-run:
-	stack exec ${PROJECT_NAME}-server
+	${STACK} exec ${PROJECT_NAME}-server
 
 # Run all tests (unit + integration)
 .PHONY: stack-test
@@ -172,16 +249,16 @@ stack-test: stack-unit-test stack-integration-test
 # Run unit tests
 .PHONY: stack-unit-test
 stack-unit-test:
-	stack test ${PROJECT_NAME}:${PROJECT_NAME}-unit-tests
+	${STACK} test ${PROJECT_NAME}:${PROJECT_NAME}-unit-tests
 
 # Run integration tests
 .PHONY: stack-integration-test
 stack-integration-test:
 	@echo '🔁 Running server for integration tests...'
-	@stack exec ${PROJECT_NAME}-server & \
+	${STACK} exec ${PROJECT_NAME}-server & \
 	SERVER_PID=$$! && \
 	sleep 1 && \
-	stack test ${PROJECT_NAME}:${PROJECT_NAME}-integration-tests ; \
+	${STACK} test ${PROJECT_NAME}:${PROJECT_NAME}-integration-tests ; \
 	EXIT_CODE=$$? ; \
 	kill $$SERVER_PID ; \
 	wait $$SERVER_PID 2>/dev/null ; \
@@ -227,53 +304,52 @@ docker-build: docker-build-base docker-build-build docker-build-live docker-buil
 
 # Build the base image
 .PHONY: docker-build-base
-docker-build-base: login-github
+docker-build-base: # login-github
 	docker buildx build \
 		--push \
-		-f Dockerfile \
-		--progress=plain \
-		--platform ${PLATFORM},${OTHER_PLATFORM} \
 		--target base \
-		-t ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-base:${VERSION} \
-		.
+		--progress=plain \
+        --build-arg USER=$(shell id -u) \
+        --build-arg GROUP=$(shell id -g) \
+		--platform ${PLATFORMS} \
+		-t ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-base:${BASE_IMAGE_VERSION} \
+		-f Dockerfile .
 
 # Build the development image
 .PHONY: docker-build-dev
 docker-build-dev: login-github
 	docker buildx build \
 		--push \
-		-f Dockerfile \
-		--progress=plain \
-		--platform ${PLATFORM},${OTHER_PLATFORM} \
 		--target dev \
-		-t ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-dev:${VERSION} \
-		.
+		--progress=plain \
+        --build-arg USER=$(shell id -u) \
+        --build-arg GROUP=$(shell id -g) \
+		--platform ${PLATFORMS} \
+		-t ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-dev:${DEV_IMAGE_VERSION} \
+		-f Dockerfile .
 
 # Build the live image
 .PHONY: docker-build-live
 docker-build-live: login-github
 	docker buildx build \
 		--push \
-		-f Dockerfile \
-		--progress=plain \
-		--platform ${PLATFORM},${OTHER_PLATFORM} \
 		--target live \
-		-t ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-live:${VERSION} \
-		.
+		--progress=plain \
+		--platform ${PLATFORMS} \
+		-t ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-live:${LIVE_IMAGE_VERSION} \
+		-f Dockerfile .
 
 # Build the server image
 .PHONY: docker-build-server
 docker-build-server: login-github login-google
 	docker buildx build \
 		--push \
-		-f Dockerfile \
-		--progress=plain \
-		--platform ${PLATFORM},${OTHER_PLATFORM} \
 		--target server \
-		--build-arg BINARY_PATH=${BIN_PATH}/haskell-server \
+		--progress=plain \
+		--platform ${PLATFORMS} \
 		-t ${GITHUB_REGISTRY}/${GITHUB_PROJECT_ID}/haskell-server:${VERSION} \
 		-t ${GOOGLE_REGISTRY}/${GOOGLE_PROJECT_ID}/${GOOGLE_REPO}/haskell-server:${VERSION} \
-		.
+		-f Dockerfile .
 
 # Remove unused Docker images
 .PHONY: docker-clean
@@ -337,4 +413,4 @@ bump-major:
 
 .PHONY: changelog
 changelog:
-	git-cliff -o CHANGELOG.md
+	git-cliff -o CH

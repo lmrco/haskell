@@ -13,90 +13,50 @@ on:
       - 'test/**'
       - 'Dockerfile'
       - 'haskell.cabal'
-      - 'stack.yaml.lock'
       - '.github/workflows/haskell.yml'
-  workflow_dispatch:
-    inputs:
-      docker-build-image:
-        description: 'Build Docker image?'
-        required: false
-        type: boolean
-        default: false
-      build-project-artifacts:
-        description: 'Build Project artifacts?'
-        required: false
-        type: boolean
-        default: true
-      build-server-image:
-        description: 'Build Server Image?'
-        required: false
-        type: boolean
-        default: true
-      deploy-testing-environment:
-        description: 'Deploy Testing Environment?'
-        required: false
-        type: boolean
-        default: true
-      generate-docs:
-        description: 'Generate Documentation?'
-        required: false
-        type: boolean
-        default: true
+
 jobs:
   # -------------------------
-  # Get Build Tag and Version
+  # Build and Test Haskell
   # -------------------------
-  get-build-tag:
-    name: ⚙️ Setup Environment
+  build-and-test:
+    name: 🚀 Build and Test Haskell
     runs-on: ubuntu-latest
-    outputs:
-      BRANCH_NAME: ${{ steps.branch-name.outputs.BRANCH_NAME }}
-      BUILD_IMAGE_TAG: ${{ steps.build-version.outputs.BUILD_IMAGE_TAG }}
-      PROJECT_VERSION: ${{ steps.build-version.outputs.PROJECT_VERSION }}
+    env:
+      GHC_VERSION: "9.8.2"
+      CABAL_VERSION: "3.10.2.0"
+      GHCR_REPO: ghcr.io/lmrco/haskell
+      GOOGLE_REPO: docker
+      GOOGLE_REGISTRY: europe-west6-docker.pkg.dev
+      GOOGLE_PROJECT_ID: nimble-repeater-462408-j7
+      TEST_REPORT_DIR: test-reports
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🧪 Calculate Branch Name
-        id: branch-name
+      - name: ♻️ Export Runtime Environment variables
         run: |
-          BRANCH_NAME=$(echo "${{ github.head_ref }}" | sed -E 's#^(chore|feature|bugfix|hotfix|release)/##' | sed 's/\//-/g')
-          echo "BRANCH_NAME: $BRANCH_NAME"
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_OUTPUT
-
-      - name: 🧪 Calculate Build Image Tag
-        id: build-tag
-        run: |
-          BUILD_IMAGE_TAG=$(sha256sum stack.yaml.lock | cut -c1-64)
-          echo "BUILD_IMAGE_TAG: BUILD_IMAGE_TAG"
-          echo "BUILD_IMAGE_TAG=$BUILD_IMAGE_TAG" >> $GITHUB_ENV
-          echo "BUILD_IMAGE_TAG=$BUILD_IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: 🧪 Calculate Build Image Version
-        id: build-version
-        run: |
-          PROJECT_VERSION=$(cat VERSION)
-          echo "PROJECT_VERSION: PROJECT_VERSION"
+          GHCR_REPO=ghcr.io/lmrco/haskell
+          echo "GHCR_REPO=$GHCR_REPO" >> $GITHUB_ENV
+          GOOGLE_REPO=docker
+          echo "GOOGLE_REPO=$GOOGLE_REPO" >> $GITHUB_ENV
+          GOOGLE_REGISTRY=europe-west6-docker.pkg.dev
+          echo "GOOGLE_REGISTRY=$GOOGLE_REGISTRY" >> $GITHUB_ENV
+          GOOGLE_PROJECT_ID=nimble-repeater-462408-j7
+          echo "GOOGLE_PROJECT_ID=$GOOGLE_PROJECT_ID" >> $GITHUB_ENV
           echo "PROJECT_VERSION=$PROJECT_VERSION" >> $GITHUB_ENV
-          echo "PROJECT_VERSION=$PROJECT_VERSION" >> $GITHUB_OUTPUT
-  # -------------------------
-  # Docker Build Image
-  # -------------------------
-  docker-build-image:
-    name: 📦 Build Development Image
-    runs-on: ubuntu-latest
-    needs:
-      - get-build-tag
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: 🔧 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+          BUILD_IMAGE_TAG=$(sha256sum haskell.cabal | cut -c1-64)
+          echo "BUILD_IMAGE_TAG=$BUILD_IMAGE_TAG" >> $GITHUB_ENV
+          PROJECT_VERSION=$(cat VERSION)
+          echo "PROJECT_VERSION=$PROJECT_VERSION" >> $GITHUB_ENV
+          DEVELOPMENT_VERSION=0.0.1.3
+          echo "DEVELOPMENT_VERSION=$DEVELOPMENT_VERSION" >> $GITHUB_ENV
+          BRANCH_NAME=$(echo "${{ github.head_ref }}" | sed -E 's#^(chore|feature|bugfix|hotfix|release)/##' | sed 's/\//-/g')
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          GHCUP_INSTALL_BASE_PREFIX=$HOME
+          echo "GHCUP_INSTALL_BASE_PREFIX=$GHCUP_INSTALL_BASE_PREFIX" >> $GITHUB_ENV
+          INDEX_STATE=2025-04-08T10:52:25Z
+          echo "INDEX_STATE=$INDEX_STATE" >> $GITHUB_ENV
 
       - name: 🔐 Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -105,18 +65,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Compute env vars
-        id: vars
-        run: |
-          GHCR_REPO=ghcr.io/lmrco/haskell
-          PROJECT_VERSION=0.0.1.2
-          echo "GHCR_REPO=$GHCR_REPO" >> $GITHUB_ENV
-          echo "PROJECT_VERSION=$PROJECT_VERSION" >> $GITHUB_ENV
-
       - name: 🔍 Check if Docker image exists
         run: |
-          echo "Checking if Docker image ghcr.io/lmrco/haskell-dev:${{ env.PROJECT_VERSION }} exists..."
-          if docker manifest inspect ghcr.io/lmrco/haskell-dev:${{ env.PROJECT_VERSION }} > /dev/null 2>&1; then
+          echo "Checking if Docker image ghcr.io/lmrco/haskell-builder:${{ env.DEVELOPMENT_VERSION }} exists..."
+          if docker manifest inspect ghcr.io/lmrco/haskell-builder:${{ env.DEVELOPMENT_VERSION }} > /dev/null 2>&1; then
             echo "✅ Docker image exists."
             echo "DOCKER_IMAGE_EXISTS=true" >> $GITHUB_ENV
           else
@@ -124,139 +76,148 @@ jobs:
             echo "DOCKER_IMAGE_EXISTS=false" >> $GITHUB_ENV
           fi
 
-      - name: 🛠️ Build and push Docker image
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🛠️ Build Development Docker Image
         if: env.DOCKER_IMAGE_EXISTS == 'false'
         run: |
           docker buildx build \
-          --platform linux/amd64 \
           --push \
+          --platform linux/amd64 \
           --target dev \
-          -t ${{ env.GHCR_REPO }}-dev:${{ env.PROJECT_VERSION }} \
+          -t ${{ env.GHCR_REPO }}-builder:${{ env.DEVELOPMENT_VERSION }} \
           -f Dockerfile .
 
-  build-project-artifacts:
-    name: 🛠 Build Project Artifacts
-    runs-on: ubuntu-latest
-    needs:
-      - get-build-tag
-      - docker-build-image
-    container:
-      image: ghcr.io/lmrco/haskell-dev:${{ needs.get-build-tag.outputs.PROJECT_VERSION }}
-    env:
-      GHC_VERSION: "9.8.2"
-      CABAL_VERSION: "3.10.2.0"
-      TEST_REPORT_DIR: test-reports
-      TEST_REPORT_FILE: test-reports/hspec-results.xml
-      PROJECT_VERSION: ${{ needs.get-build-tag.outputs.PROJECT_VERSION }}
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: ♻️ Export CI environment variables
+      - name: 🐳 Pull Development Docker Image
         run: |
-          TEST_REPORT_DIR="test-reports"
-          TEST_REPORT_FILE="${TEST_REPORT_DIR}/hspec-results.xml"
-          echo "TEST_REPORT_DIR=$TEST_REPORT_DIR" >> "$GITHUB_ENV"
-          echo "TEST_REPORT_FILE=$TEST_REPORT_FILE" >> "$GITHUB_ENV"
+          docker pull ${{ env.GHCR_REPO }}-builder:${{ env.DEVELOPMENT_VERSION }} || true
 
-      - name: 🛠 Build Haskell Project
+      - name: 🛠 Build Haskell Server in Development Image
+        continue-on-error: true
         run: |
-          stack build --allow-different-user
+          docker run --rm \
+            -w /work \
+            -v $(pwd):/work \
+            --user $(id -u):$(id -g) \
+            ${{ env.GHCR_REPO }}-builder:${{ env.DEVELOPMENT_VERSION }} \
+            cabal build all
 
-      - name: 📦 Save built binary as artifact
+      - name: 📦 Save server binary as artifact
         uses: actions/upload-artifact@v4
         with:
           name: haskell-server
-          path: /root/.local/bin/haskell-server
+          path: ./bin/haskell-server
 
-  unit-tests:
-    name: 🧪 Run Unit Tests
-    runs-on: ubuntu-latest
-    needs:
-      - get-build-tag
-      - docker-build-image
-    container:
-      image: ghcr.io/lmrco/haskell-dev:${{ needs.get-build-tag.outputs.PROJECT_VERSION }}
-    env:
-      GHC_VERSION: "9.8.2"
-      CABAL_VERSION: "3.10.2.0"
-      TEST_REPORT_DIR: test-reports
-      TEST_REPORT_FILE: test-reports/hspec-results.xml
-      PROJECT_VERSION: ${{ needs.get-build-tag.outputs.PROJECT_VERSION }}
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+      - name: Cache Cabal Store
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cabal/store
+            ./dist-newstyle
+          key: cabal-store-${{ hashFiles('cabal.project') }}-${{ hashFiles('cabal.project.freeze') }}
 
-      - name: ♻️ Export CI environment variables
+      - name: 🔧 Cache Haskell Toolchain
+        id: haskell-cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            /home/runner/.ghcup
+            /home/runner/.cabal
+          key: haskell-toolchain-${{ hashFiles('haskell.cabal') }}
+          restore-keys: |
+            haskell-toolchain-
+
+      - name: 🌟 Set up Haskell environment
+        if: steps.haskell-cache.outputs.cache-hit != 'true'
         run: |
-          TEST_REPORT_DIR="test-reports"
-          TEST_REPORT_FILE="${TEST_REPORT_DIR}/hspec-results.xml"
-          echo "TEST_REPORT_DIR=$TEST_REPORT_DIR" >> "$GITHUB_ENV"
-          echo "TEST_REPORT_FILE=$TEST_REPORT_FILE" >> "$GITHUB_ENV"
+          curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org  | sh
+          source ~/.ghcup/env
+          ghcup install ghc ${{ env.GHC_VERSION }}
+          ghcup set ghc ${{ env.GHC_VERSION }}
+          ghcup install cabal ${{ env.CABAL_VERSION }}
+          cabal update --index-state='hackage.haskell.org ${{ env.INDEX_STATE }}, cardano-haskell-packages ${{ env.INDEX_STATE }}'
+          ghc --version
+          cabal --version
+          echo "$HOME/.ghcup/bin" >> $GITHUB_PATH
+          echo "$HOME/.cabal/bin" >> $GITHUB_PATH
 
-      - name: 🛠 Build Haskell Project
+      - name: 🛠 Build Haskell Server
         run: |
-          stack build --allow-different-user
+          cabal build all
+          mkdir -p ./bin
+          cp ./dist-newstyle/build/aarch64-osx/ghc-8.10.7/haskell-${PROJECT_VERSION}/x/haskell-server/build/haskell-server/haskell-server ./bin/haskell-server
+
+      - name: 📦 Save server binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: haskell-server
+          path: ./bin/haskell-server
 
       - name: 🧪 Run Unit Tests and Generate Report
         run: |
-          TASTY_ANT_XML=test-reports/hspec-results.xml stack test haskell:haskell-unit-tests --allow-different-user
+          export TASTY_ANT_XML=${TEST_REPORT_DIR}/hspec-results.xml
+          cabal test haskell:haskell-unit-tests --test-show-details=direct --test-option=--xml-output
 
       - name: 📤 Upload test report
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: ${{ env.TEST_REPORT_FILE }}
+          path: ${{ env.TEST_REPORT_DIR }}/hspec-results.xml
 
-      - name: 🧾 Publish test results to GitHub UI
-        uses: mikepenz/action-junit-report@v4
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+#      - name: 🧾 Publish test results to GitHub UI
+#        uses: mikepenz/action-junit-report@v4
+#        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+#        with:
+#          report_paths: ${{ env.TEST_REPORT_DIR }}/hspec-results.xml
+#          include_passed: true
+
+#      - name: 📋 Post test results as PR comment
+#        uses: dorny/test-reporter@v1
+#        if: github.event_name == 'pull_request'
+#        continue-on-error: true
+#        with:
+#          name: Unit Tests Reports
+#          path: ${{ env.TEST_REPORT_DIR }}/hspec-results.xml
+#          reporter: java-junit
+#          fail-on-error: false
+
+      - name: 🧪 Run Integration Tests and Generate Report
+        run: |
+          cabal run haskell:haskell-server &
+          sleep 2
+          export TASTY_ANT_XML=test-reports/hspec-results.xml
+          cabal test haskell:haskell-integration-tests --test-show-details=direct --test-option=--xml-output
+          kill $(jobs -p)
+
+      - name: 📤 Upload integration test report
+        uses: actions/upload-artifact@v4
         with:
-          report_paths: ${{ env.TEST_REPORT_FILE }}
-          include_passed: true
+          name: integration-test-results
+          path: ${{ env.TEST-REPORT_DIR }}/hspec-results-integrations.xml
 
-      - name: 📋 Post test results as PR comment
-        uses: dorny/test-reporter@v1
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
+#      - name: 🧾 Publish integration test results to GitHub UI
+#        uses: mikepenz/action-junit-report@v4
+#        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+#        with:
+#          report_paths: ${{ env.TEST_REPORT_DIR }}/hspec-results-integration.xml
+#          include_passed: true
+
+#      - name: 📋 Post integration test results as PR comment
+#        uses: dorny/test-reporter@v1
+#        if: github.event_name == 'pull_request'
+#        continue-on-error: true
+#        with:
+#          name: Integration Tests Reports
+#          path: ${{ env.TEST_REPORT_DIR }}/hspec-results-integration.xml
+#          reporter: java-junit
+#          fail-on-error: false
+
+      - name: 📥 Download built binary
+        uses: actions/download-artifact@v4
         with:
-          name: Unit Tests
-          path: ${{ env.TEST_REPORT_FILE }}
-          reporter: java-junit
-          fail-on-error: false
-
-  # -------------------------
-  # Build Docker Server Image
-  # -------------------------
-  docker-server-image:
-    name: 🚀 Build Server Image
-    runs-on: ubuntu-latest
-    needs:
-      - get-build-tag
-      - build-project-artifacts
-      - docker-build-image
-    permissions:
-      packages: write
-    env:
-      GHCR_REPO: ghcr.io/lmrco/haskell
-      GOOGLE_REPO: docker
-      GOOGLE_REGISTRY: europe-west6-docker.pkg.dev
-      GOOGLE_PROJECT_ID: nimble-repeater-462408-j7
-      BRANCH_NAME: ${{ needs.get-build-tag.outputs.BRANCH_NAME }}
-      PROJECT_VERSION: ${{ needs.get-build-tag.outputs.PROJECT_VERSION }}
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: 🛠️ Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🔐 Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          name: haskell-server
+          path: ./bin
 
       - name: 🔐 Log in to Google Artifact Registry
         uses: docker/login-action@v3
@@ -265,26 +226,25 @@ jobs:
           username: _json_key
           password: ${{ secrets.GOOGLE_ARTIFACT_REGISTRY_JSON_KEY }}
 
-      - name: 📥 Download built binary
-        uses: actions/download-artifact@v4
-        with:
-          name: haskell-server
-          path: ./bin
-
       - name: 🐳 Build Server Image & Push
         run: |
           docker buildx build \
-            --platform linux/amd64 \
-            --target server \
             --push \
+            --target server \
+            --platform linux/amd64 \
+            --build-arg HOST_UID=$(shell id -u) \
+            --build-arg HOST_GID=$(shell id -g) \
+            --build-arg BINARY_PATH=./bin/haskell-server \
             -t "$GHCR_REPO-server:$PROJECT_VERSION-$BRANCH_NAME" \
             -t "$GOOGLE_REGISTRY/$GOOGLE_PROJECT_ID/$GOOGLE_REPO/haskell-server:$BRANCH_NAME" \
-            --build-arg BINARY_PATH=./bin/haskell-server \
             -f Dockerfile .
 
-      - name: 🧪 Test Server Docker Image
+      - name: 🧪 Pull Server Docker Image
         run: |
           docker pull "$GHCR_REPO-server:$PROJECT_VERSION-$BRANCH_NAME"
+
+      - name: 🧪 Start Server Docker Image
+        run: |
           # Start the container in detached mode
           docker run -d --rm --name haskell-server -p 8080:8080 "$GHCR_REPO-server:$PROJECT_VERSION-$BRANCH_NAME"
           # Wait for the server to start
@@ -303,40 +263,19 @@ jobs:
             exit 1
           fi
           echo "✅ Server is running"
-          docker stop haskell-server
 
-  # -------------------------
-  # Deploy Server Preview
-  # -------------------------
-  deploy-testing-environment:
-    name: 🌟 Deploy Server Preview
-    runs-on: ubuntu-latest
-    needs:
-      - get-build-tag
-      - build-project-artifacts
-      - docker-server-image
-    env:
-      GHCR_REPO: ghcr.io/lmrco/haskell
-      GOOGLE_REPO: docker
-      GOOGLE_REGISTRY: europe-west6-docker.pkg.dev
-      GOOGLE_PROJECT_ID: nimble-repeater-462408-j7
-      BRANCH_NAME: ${{ needs.get-build-tag.outputs.BRANCH_NAME }}
-      PROJECT_VERSION: ${{ needs.get-build-tag.outputs.PROJECT_VERSION }}
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+      - name: 🧪 Test Server Docker Image
+        run: |
+          cabal test haskell:haskell-integration-tests
+
+      - name: 🧪 Stop Server Docker Image
+        run: |
+          docker stop haskell-server
 
       - name: 🔐 Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GOOGLE_ARTIFACT_REGISTRY_JSON_KEY }}
-
-      - name: 🔐 Log in to Google Artifact Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.GOOGLE_REGISTRY }}/${{ env.GOOGLE_PROJECT_ID }}/${{ env.GOOGLE_REPO }}
-          username: _json_key
-          password: ${{ secrets.GOOGLE_ARTIFACT_REGISTRY_JSON_KEY }}
 
       - name: 🚢 Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v1
@@ -347,124 +286,22 @@ jobs:
           project_id: ${{ env.GOOGLE_PROJECT_ID }}
           allow_unauthenticated: true
 
-  # -------------------------
-  # Integration Tests
-  # -------------------------
-  integration-tests:
-    name: 🧪 Run Integration Tests
-    runs-on: ubuntu-latest
-    needs:
-      - get-build-tag
-      - docker-server-image
-    env:
-      GHCR_REPO: ghcr.io/lmrco/haskell
-      BRANCH_NAME: ${{ needs.get-build-tag.outputs.BRANCH_NAME }}
-      PROJECT_VERSION: ${{ needs.get-build-tag.outputs.PROJECT_VERSION }}
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: 🔐 Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: 🌐 Create Docker Network
+      - name: 🔧 Install HLint
         run: |
-          docker network create haskell-test-network || true
+          cabal install hlint
 
-      - name: 📥 Pull Server Image
+      - name: 🔧 Install Fourmolu
         run: |
-          docker pull "$GHCR_REPO-server:$PROJECT_VERSION-$BRANCH_NAME" || true
-          echo "Pulled server image: $GHCR_REPO-server:$PROJECT_VERSION-$BRANCH_NAME"
-
-      - name: 🐳 Start Server Container
-        run: |
-          docker run -d --rm --name haskell-server \
-            -p 8080:8080 \
-            --network haskell-test-network \
-            "$GHCR_REPO-server:$PROJECT_VERSION-$BRANCH_NAME"
-          # Wait for the server to start
-          echo "⏳ Waiting for server to be ready..."
-          for i in {1..10}; do
-            if curl -sSf http://localhost:8080/health > /dev/null; then
-              break
-            fi
-            echo "Still waiting... (${i}s)"
-            sleep 3
-          done
-          # Check logs if the server fails to start
-          if ! curl -sSf http://localhost:8080/health > /dev/null; then
-            echo "❌ Server failed to start. Checking logs..."
-            docker logs haskell-server
-            exit 1
-          fi
-          echo "✅ Server is running"
-
-      - name: 📥 Pull Development Image
-        run: |
-          docker pull "$GHCR_REPO-dev:$PROJECT_VERSION" || true
-          echo "Pulled dev image: $GHCR_REPO-dev:$PROJECT_VERSION"
-
-      - name: 🧪 Run Integration Tests in Development Image
-        run: |
-          stack test haskell:haskell-integration-tests --allow-different-user
-
-      - name: 🧹 Stop Prod Container
-        run: docker stop haskell-server || true
-
-  # -------------------------
-  # Check Code Format
-  # -------------------------
-  check-code-format:
-    name: 🎨 Check Code Format
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    needs:
-      - get-build-tag
-    container:
-      image: ghcr.io/lmrco/haskell-dev:${{ needs.get-build-tag.outputs.PROJECT_VERSION }}
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: 🎨 Format Haskell code (Fourmolu)
-        run: |
-          find app/ src/ test/ -name '*.hs' | xargs fourmolu --mode check
-
-  # -------------------------
-  # Static Analysis
-  # -------------------------
-  static-analysis:
-    name: 🔍 Perform Static Analysis
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    needs:
-      - get-build-tag
-      - build-project-artifacts
-    container:
-      image: ghcr.io/lmrco/haskell-dev:${{ needs.get-build-tag.outputs.PROJECT_VERSION }}
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+          cabal install fourmolu
 
       - name: 🔍 Lint Haskell code (HLint)
         run: |
           hlint app/ src/ test/
 
-  # -------------------------
-  # Generate Documentation
-  # -------------------------
-  generate-docs:
-    name: 📚 Generate Documentation
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
+      - name: 🎨 Format Haskell code (Fourmolu)
+        run: |
+          find app/ src/ test/ -name '*.hs' | xargs fourmolu --mode check
+          
       - name: 📚 Build Haddock documentation
         run: |
           cabal haddock --haddock-html --haddock-hyperlink-source
