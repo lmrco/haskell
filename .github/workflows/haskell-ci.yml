@@ -22,7 +22,26 @@ on:
         required: false
         type: boolean
         default: false
-
+      build-project-artifacts:
+        description: 'Build Project artifacts?'
+        required: false
+        type: boolean
+        default: true
+      build-server-image:
+        description: 'Build Server Image?'
+        required: false
+        type: boolean
+        default: true
+      deploy-testing-environment:
+        description: 'Deploy Testing Environment?'
+        required: false
+        type: boolean
+        default: true
+      generate-docs:
+        description: 'Generate Documentation?'
+        required: false
+        type: boolean
+        default: true
 jobs:
   # -------------------------
   # Get Build Tag and Version
@@ -90,7 +109,7 @@ jobs:
         id: vars
         run: |
           GHCR_REPO=ghcr.io/lmrco/haskell
-          PROJECT_VERSION=0.0.1.1
+          PROJECT_VERSION=0.0.1.2
           echo "GHCR_REPO=$GHCR_REPO" >> $GITHUB_ENV
           echo "PROJECT_VERSION=$PROJECT_VERSION" >> $GITHUB_ENV
 

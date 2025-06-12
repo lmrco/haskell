@@ -24,7 +24,7 @@ WORKDIR /app
 # Build image layer
 # -----------------------------------
 
-FROM ghcr.io/lmrco/haskell-base:0.0.1.1 AS dev
+FROM ghcr.io/lmrco/haskell-base:0.0.1.2 AS dev
 
 # Copy application source code
 COPY . .
@@ -77,7 +77,7 @@ ENV LC_ALL=en_US.UTF-8
 # Server image layer
 # -----------------------------------
 
-FROM ghcr.io/lmrco/haskell-live:0.0.1.1 AS server
+FROM ghcr.io/lmrco/haskell-live:0.0.1.2 AS server
 
 # Copy the built binary from the development stage
 ARG BINARY_PATH

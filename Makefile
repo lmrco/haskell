@@ -9,7 +9,7 @@
 # ----------------------------------------------------------------
 # Configurable Variables
 # ----------------------------------------------------------------
-VERSION 		  ?= $(shell cat VERSION 2>/dev/null || echo '0.0.1.1')
+VERSION 		  ?= $(shell cat VERSION 2>/dev/null || echo '0.0.1.2')
 
 BIN_PATH          ?= bin
 STACK_WORK        ?= .stack-work

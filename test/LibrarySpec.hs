@@ -2,7 +2,7 @@
 
 module Main (main) where
 
-import MyLib
+import Library
 import System.Environment (lookupEnv, withArgs)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import Test.QuickCheck (property)
@@ -12,7 +12,7 @@ import Test.Tasty.Runners.AntXML (antXMLRunner)
 
 main :: IO ()
 main = do
-    testTree <- testSpec "MyLib tests" spec
+    testTree <- testSpec "Library tests" spec
     -- Look for the TASTY_ANT_XML environment variable
     mXmlPath <- lookupEnv "TASTY_ANT_XML"
     let ingredients = maybe defaultIngredients (const [antXMLRunner]) mXmlPath
