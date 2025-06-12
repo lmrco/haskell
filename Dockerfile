@@ -2,56 +2,116 @@
 # Base image layer
 # -----------------------------------
 
-FROM haskell:9.12.2-bookworm AS base
+FROM --platform=linux/amd64 haskell:8.10.7 AS base
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    STACK_ROOT=/home/haskell/.stack
 
 # Install essential system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+        ca-certificates \
         curl \
+        gcc \
         git \
+        gnupg \
+        libgmp-dev \
         libgmp10 \
         libtinfo6 \
+        npm \
         python3 \
         python3-pip \
-        npm && \
+        zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for PATH and working directory
-ENV PATH="/root/.local/bin:$PATH"
-WORKDIR /app
+# Create a non-root user with configurable UID/GID
+ARG HOST_UID=1000
+ARG HOST_GID=1000
+
+# Set default values for UID and GID if not provided
+RUN useradd -m -u $HOST_UID -g $HOST_GID haskell
+
+# Ensure the user has a home directory and set permissions
+RUN getent group $HOST_GID && \
+    groupmod -n haskell dialout && \
+    getent group haskell
+
+# Prepare Stack root directory
+RUN mkdir -p $STACK_ROOT && \
+    chmod -R 770 $STACK_ROOT && \
+    chown -R haskell:haskell $STACK_ROOT
+
+# Set the home directory and PATH for the haskell user
+ENV HOME_DIR=/home/haskell \
+    PATH="$HOME_DIR/.local/bin:$PATH"
+
+# Create the home directory for the haskell user
+RUN mkdir -p $HOME_DIR/.local/bin && \
+    chmod -R 770 $HOME_DIR/.local/bin && \
+    chown -R haskell:haskell $HOME_DIR/.local/bin
+
+# Create a global project directory for Stack
+RUN mkdir -pv $STACK_ROOT/global-project && \
+    chmod -R 775 $STACK_ROOT/global-project && \
+    chown -R haskell:haskell $STACK_ROOT/global-project && \
+    echo "packages: []\nsnapshot: lts-18.28" > $STACK_ROOT/global-project/stack.yaml
+
+# Install stack
+RUN curl -sSL https://get.haskellstack.org/ | sh -s - -f
+
+# Switch to the haskell user
+USER haskell
+
+# Set up Stack for the haskell user
+RUN stack setup --resolver lts-18.28
+
+# Optional tools
+RUN stack install hlint fourmolu \
+    --resolver lts-18.28 --local-bin-path=/home/haskell/.local/bin
+
+WORKDIR /work
+
+# Copy application source code
+#COPY --chown=haskell:haskell . .
+COPY --chown=haskell:haskell stack.yaml stack.yaml.lock haskell.cabal ./
+#COPY --chown=haskell:haskell src ./src
+#COPY --chown=haskell:haskell app ./app
+#COPY --chown=haskell:haskell test ./test
+
+# Cache dependencies first (avoids rebuilding on code change)
+RUN stack build  \
+    --only-dependencies \
+    --resolver lts-18.28
 
 # -----------------------------------
 # Build image layer
 # -----------------------------------
 
-FROM ghcr.io/lmrco/haskell-base:0.0.1.2 AS dev
+FROM --platform=linux/amd64 ghcr.io/lmrco/haskell-base:0.0.1.3 AS dev
+
+# Switch to the haskell user
+USER haskell
+
+# Set the home directory and PATH for the haskell user
+ENV HOME_DIR=/home/haskell \
+    PATH="$HOME_DIR/.local/bin:$PATH"
+
+# Set the working directory
+WORKDIR /work
 
 # Copy application source code
-COPY . .
-
-# Configure Stack settings
-ENV STACK_ROOT=/tmp/stack-root
-ENV PATH="/root/.local/bin:$PATH"
-
-# Prepare Stack root directory and set permissions
-RUN mkdir -p $STACK_ROOT && \
-    chmod -R 777 $STACK_ROOT
-
-# Install GHC, build tools, and dependencies
-RUN stack setup --install-ghc --allow-different-user && \
-    stack install hlint fourmolu --allow-different-user \
-        --local-bin-path=/root/.local/bin && \
-    stack build --only-dependencies --allow-different-user
+COPY --chown=haskell:haskell . .
 
 # Build and install the project
-RUN stack build --allow-different-user && \
-    stack install --allow-different-user --local-bin-path=/root/.local/bin
+RUN stack build && \
+    stack install --local-bin-path=/home/haskell/.local/bin
 
 # -----------------------------------
 # Live image layer
 # -----------------------------------
 
-FROM debian:bookworm-slim AS live
+FROM --platform=linux/amd64 debian:bookworm-slim AS live
 
 # Install runtime dependencies
 RUN apt-get update && \
@@ -77,7 +137,7 @@ ENV LC_ALL=en_US.UTF-8
 # Server image layer
 # -----------------------------------
 
-FROM ghcr.io/lmrco/haskell-live:0.0.1.2 AS server
+FROM --platform=linux/amd64 ghcr.io/lmrco/haskell-live:0.0.1.1 AS server
 
 # Copy the built binary from the development stage
 ARG BINARY_PATH

@@ -5,7 +5,7 @@ license:       MIT
 license-file:  LICENSE
 author:        Luca Marrocco
 build-type:    Simple
-tested-with:   GHC==9.8.2
+tested-with:   GHC==8.10.7
 
 -- ========================
 -- 📚 Library
@@ -26,10 +26,10 @@ test-suite haskell-unit-tests
   main-is:          LibrarySpec.hs
   hs-source-dirs:   test
   build-depends:
+    , QuickCheck
     , base
     , haskell
     , hspec
-    , QuickCheck
     , tasty
     , tasty-ant-xml
     , tasty-hspec
@@ -48,8 +48,8 @@ executable haskell-server
     , base
     , containers
     , haskell
-    , lens
     , http-types
+    , lens
     , scotty
     , text
     , warp
@@ -66,12 +66,14 @@ test-suite haskell-integration-tests
   main-is:          ServerSpec.hs
   hs-source-dirs:   test
   build-depends:
+    , QuickCheck
     , aeson
     , async
     , base
     , bytestring
     , containers
     , haskell
+    , hspec
     , hspec
     , http-client
     , http-types
@@ -80,6 +82,9 @@ test-suite haskell-integration-tests
     , network
     , process
     , tasty
+    , tasty
+    , tasty-ant-xml
+    , tasty-hspec
     , tasty-hspec
     , text
     , wai

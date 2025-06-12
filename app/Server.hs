@@ -2,7 +2,6 @@
 
 module Main where
 
-import Control.Monad (when)
 import Data.Aeson (FromJSON, object, parseJSON, withObject, (.:), (.=))
 import Network.HTTP.Types.Status (status400)
 import Network.Wai.Handler.Warp (run)
