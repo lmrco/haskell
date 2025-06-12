@@ -13,11 +13,12 @@ import Test.Tasty.Runners.AntXML (antXMLRunner)
 main :: IO ()
 main = do
     testTree <- testSpec "MyLib tests" spec
-
+    -- Look for the TASTY_ANT_XML environment variable
     mXmlPath <- lookupEnv "TASTY_ANT_XML"
     let ingredients = maybe defaultIngredients (const [antXMLRunner]) mXmlPath
-    withArgs (maybe [] (\path -> ["--xml=" ++ path]) mXmlPath) $
-        defaultMainWithIngredients ingredients testTree
+        args = maybe [] (\path -> ["--xml=" ++ path]) mXmlPath
+    -- Run tests with XML output if TASTY_ANT_XML is set
+    withArgs args $ defaultMainWithIngredients ingredients testTree
 
 spec :: Spec
 spec = do

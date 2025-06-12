@@ -179,15 +179,12 @@ jobs:
         run: |
           stack build --allow-different-user
 
-      - name: 🧪 Run Unit tests and Report
+      - name: 🧪 Run Unit Tests and Generate Report
         run: |
-          stack test haskell:haskell-unit-tests \
-            --allow-different-user \
-            --test-arguments="--xml=${TEST_REPORT_FILE}"
+          TASTY_ANT_XML=test-reports/hspec-results.xml stack test haskell:haskell-unit-tests --allow-different-user
 
       - name: 📤 Upload test report
         uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
           name: test-results
           path: ${{ env.TEST_REPORT_FILE }}
@@ -195,7 +192,6 @@ jobs:
       - name: 🧾 Publish test results to GitHub UI
         uses: mikepenz/action-junit-report@v4
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        continue-on-error: true
         with:
           report_paths: ${{ env.TEST_REPORT_FILE }}
           include_passed: true
@@ -396,12 +392,6 @@ jobs:
       - name: 🧪 Run Integration Tests in Development Image
         run: |
           stack test haskell:haskell-integration-tests --allow-different-user
-      #          docker run --rm \
-      #            -v "$(pwd):/workspace" \
-      #            -w /workspace \
-      #            -e STACK_ROOT=/tmp/stack-root \
-      #            --network haskell-test-network \
-      #            "$GHCR_REPO-dev:$PROJECT_VERSION" \
 
       - name: 🧹 Stop Prod Container
         run: docker stop haskell-server || true
