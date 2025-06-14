@@ -1,3 +1,16 @@
-resolver: lts-20.23
+resolver: lts-18.28
+
 packages:
   - .
+
+extra-deps: []
+
+nix:
+  enable: false
+  packages:
+    - zlib
+    - libgmp
+
+flags: {}
+
+extra-package-dbs: []
