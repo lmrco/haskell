@@ -1,27 +1,32 @@
 repos:
   - repo: local
     hooks:
-      - id: fourmolu-format
-        name: fourmolu format check
-        entry: bash -c 'find . -name "*.hs" | xargs fourmolu --mode check'
-        language: system
-        types: [haskell]
-
       - id: hlint
         name: hlint static analysis
-        entry: hlint src test
+        description: Runs HLint for static analysis on Haskell files.
+        entry: bash -c 'hlint app src test --color=always'
         language: system
         types: [haskell]
 
-      - id: haskell-unit-tests
-        name: run haskell test suite
-        entry: bash -c 'cabal run haskell-unit-tests'
+      - id: fourmolu-format
+        name: fourmolu format check
+        description: Checks Haskell files for formatting issues using Fourmolu.
+        entry: bash -c 'fourmolu --mode check app src test'
         language: system
-        pass_filenames: false
+        types: [haskell]
 
       - id: fourmolu-autoformat
         name: fourmolu auto format
-        entry: bash -c 'find . -name "*.hs" | xargs fourmolu --mode inplace'
+        description: Automatically formats Haskell files using Fourmolu.
+        entry: bash -c 'fourmolu --mode inplace app src test'
         language: system
         pass_filenames: false
         stages: [manual]
+
+      - id: haskell-unit-tests
+        name: run haskell test suite
+        description: Runs the Haskell unit test suite using Cabal.
+        entry: bash -c 'cabal run haskell-unit-tests'
+        language: system
+        pass_filenames: false
+        types: [all]

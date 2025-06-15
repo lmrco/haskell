@@ -2,42 +2,38 @@
 # Base image layer
 # -----------------------------------
 
-FROM ubuntu:20.04 AS base
-
-# Set version arguments for GHC, Cabal, and HLS
-ARG CABAL_VERSION=3.6.2.0
-ARG GHC_VERSION=8.10.7
-ARG HLS_VERSION=1.7.0.0
-ARG INDEX_STATE=2025-04-08T10:52:25Z
-
-# Set iohk libsodium and secp256k1 git revisions
-ARG IOHK_LIBSODIUM_GIT_REV=66f017f16633f2060db25e17c170c2afa0f2a8a1
-ARG IOHK_LIBSECP251_GIT_REV=ac83be33d0956faf6b7f61a60ab524ef7d6a473a
+FROM ubuntu:22.04 AS base
 
 # Set the environment variables for locale and versions
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     LANGUAGE=en_US:en \
     WORKDIR=/app \
-    GHC_VERSION=8.10.7 \
-    CABAL_VERSION=3.6.2.0 \
+    GHC_VERSION=9.10.1 \
+    CABAL_VERSION=3.14.1.1 \
     DEBIAN_FRONTEND=noninteractive \
-    PATH=${PATH}:${HOME:-/root}/.ghcup/bin
+    PATH=${PATH}:/root/.ghcup/bin
 
 # Install essential system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+        autoconf \
         automake \
         build-essential \
         ca-certificates \
+        chrony \
         curl \
+        dpkg-dev \
         g++ \
         gcc \
         git \
+        gnupg \
         jq \
+        libc6-dev \
         libffi-dev \
         libgmp-dev \
         libicu-dev \
+        liblzma-dev \
         libncursesw5 \
         libnuma-dev \
         libpq-dev \
@@ -48,7 +44,9 @@ RUN apt-get update && \
         libtool \
         llvm \
         make \
+        netbase \
         pkg-config \
+        procps \
         tmux \
         wget \
         xz-utils \
@@ -56,6 +54,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # install secp2561k library with prefix '/'
+ARG IOHK_LIBSECP251_GIT_REV=ac83be33d0956faf6b7f61a60ab524ef7d6a473a
 RUN git clone https://github.com/bitcoin-core/secp256k1 && \
     cd secp256k1 && \
     git fetch --all --tags && \
@@ -66,6 +65,8 @@ RUN git clone https://github.com/bitcoin-core/secp256k1 && \
     make install && cd .. && rm -rf ./secp256k1
 
 # install libsodium from sources with prefix '/'
+ARG IOHK_LIBSODIUM_GIT_REV=66f017f16633f2060db25e17c170c2afa0f2a8a1
+ARG IOHK_LIBSODIUM_GIT_REV=dbb48cc
 RUN git clone https://github.com/input-output-hk/libsodium.git && \
     cd libsodium && \
     git fetch --all --tags && \
@@ -75,56 +76,33 @@ RUN git clone https://github.com/input-output-hk/libsodium.git && \
     make && \
     make install  && cd .. && rm -rf ./libsodium
 
-# Install ghcup
-RUN wget --secure-protocol=TLSv1_2 https://downloads.haskell.org/~ghcup/$(arch)-linux-ghcup && \
-    chmod +x $(arch)-linux-ghcup && \
-    mkdir -p ${HOME:-/root}/.ghcup/bin && \
-    mv $(arch)-linux-ghcup ${HOME:-/root}/.ghcup/bin/ghcup
+# Download and install ghcup
+RUN curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 
-# install ghc, caball, and hls
-RUN ghcup config set downloader Wget && \
-    ghcup install ghc ${GHC_VERSION} && \
-    ghcup install cabal ${CABAL_VERSION} && \
+# Install GHC, Cabal, and HLS using ghcup
+ARG GHC_VERSION=9.10.1
+ARG CABAL_VERSION=3.14.1.1
+RUN ghcup install ghc ${GHC_VERSION} && \
     ghcup set ghc ${GHC_VERSION} && \
-    ghcup install hls ${HLS_VERSION}
-
-# Update cabal
-RUN cabal update --index-state='hackage.haskell.org $INDEX_STATE, cardano-haskell-packages $INDEX_STATE'
+    ghcup install cabal ${CABAL_VERSION} && \
+    ghcup set cabal ${CABAL_VERSION}
 
 # Add cabal to PATH
 RUN echo "export PATH=$PATH:/root/.cabal/bin" >> ~/.bashrc
 
-# Install lint and formatting tools
-RUN cabal install hlint fourmolu --installdir=/usr/local/bin
-
-# Set working directory and environment variables
-WORKDIR $WORKDIR
-
-# Copy project configuration files
-COPY cabal.project haskell.cabal ./
-
-# Install project dependencies
-RUN cabal build --only-dependencies --enable-tests --enable-benchmarks && \
-    cabal install --only-dependencies --enable-tests --enable-benchmarks
-
-# Set default commands for the image
-CMD ["bash"]
-
-# -----------------------------------
-# Builder image layer
-# -----------------------------------
-
-FROM ghcr.io/lmrco/haskell-base:0.0.1.3 AS builder
-
 # Set the working directory
 WORKDIR $WORKDIR
 
-# Copy application source code
-COPY . .
+# Copy the project files
+COPY cabal.project haskell.cabal ./
 
-# Build and install the project
-RUN cabal build && \
-    cabal install
+# Update cabal package list
+RUN cabal clean && \
+    cabal update && \
+    cabal build --only-dependencies --enable-tests --enable-benchmarks
+
+# Install project dependencies
+RUN echo "export PATH=$PATH:/root/.cabal/bin" >> ~/.bashrc
 
 # Set default commands for the image
 CMD ["bash"]

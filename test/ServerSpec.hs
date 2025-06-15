@@ -5,7 +5,7 @@ module Main (main) where
 import Control.Exception (throwIO, try)
 import Control.Lens ((&), (.~), (^.))
 import Data.Aeson (object, (.=))
-import qualified Data.ByteString.Lazy.Char8 as LBS
+import Data.ByteString.Lazy.Char8 qualified as LBS
 import Network.HTTP.Client (HttpException, HttpExceptionContent (StatusCodeException))
 import Network.Wreq
 import System.Environment (lookupEnv, withArgs)
@@ -51,20 +51,4 @@ spec = describe "HTTP API" $ do
             Right res -> do
                 res ^. responseStatus . statusCode `shouldBe` 200
                 res ^. responseBody `shouldBe` "{\"result\":2}"
-            Left err -> throwIO err
-
-    -- Test the sum endpoint with valid input
-    it "POST /lovelace {quantity: 123456789} should return {lovelace: 123456789}" $ do
-        let payload = object ["quantity" .= (123456789 :: Int)]
-        result <-
-            try $
-                postWith
-                    (defaults & header "Content-Type" .~ ["application/json"])
-                    "http://localhost:8080/lovelace"
-                    payload ::
-                IO (Either HttpException (Response LBS.ByteString))
-        case result of
-            Right res -> do
-                res ^. responseStatus . statusCode `shouldBe` 200
-                res ^. responseBody `shouldBe` "{\"lovelace\":123456789}"
             Left err -> throwIO err

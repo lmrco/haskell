@@ -1,7 +1,7 @@
 {
   "name": "Haskell, Cardano & Plinth Development",
   "dockerComposeFile": "docker-compose.yml",
-  "service": "haskell-base",
+  "service": "haskell",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "customizations": {
