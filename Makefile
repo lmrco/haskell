@@ -86,12 +86,12 @@ setup: stack-setup
 # Clean build artifacts
 .PHONY: clean
 clean: stack-clean
-	rm -rf ${STACK_WORK}
 	rm -rf ${BIN_PATH}
+	rm -rf ${STACK_WORK}
 
 # Build the project
 .PHONY: build
-build:
+build: stack-build
 
 # Install the project binaries locally
 .PHONY: install

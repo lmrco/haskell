@@ -9,7 +9,7 @@ repos:
 
       - id: hlint
         name: hlint static analysis
-        entry: hlint src test
+        entry: bash -c 'hlint app src test'
         language: system
         types: [haskell]
 

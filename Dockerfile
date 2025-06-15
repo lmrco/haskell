@@ -22,7 +22,7 @@ ENV LANG=C.UTF-8 \
     GHC_VERSION=8.10.7 \
     CABAL_VERSION=3.6.2.0 \
     DEBIAN_FRONTEND=noninteractive \
-    PATH=${PATH}:${HOME:-/root}/.ghcup/bin
+    PATH=${PATH}:/root/.ghcup/bin
 
 # Install essential system dependencies
 RUN apt-get update && \
@@ -75,21 +75,16 @@ RUN git clone https://github.com/input-output-hk/libsodium.git && \
     make && \
     make install  && cd .. && rm -rf ./libsodium
 
-# Install ghcup
-RUN wget --secure-protocol=TLSv1_2 https://downloads.haskell.org/~ghcup/$(arch)-linux-ghcup && \
-    chmod +x $(arch)-linux-ghcup && \
-    mkdir -p ${HOME:-/root}/.ghcup/bin && \
-    mv $(arch)-linux-ghcup ${HOME:-/root}/.ghcup/bin/ghcup
+# Download and install ghcup
+RUN curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
 
-# install ghc, caball, and hls
-RUN ghcup config set downloader Wget && \
-    ghcup install ghc ${GHC_VERSION} && \
+# Install GHC, Cabal, and HLS using ghcup
+RUN ghcup install ghc ${GHC_VERSION} && \
+    ghcup set ghc ${GHC_VERSION} && \
     ghcup install cabal ${CABAL_VERSION} && \
+    ghcup set cabal ${CABAL_VERSION} && \
     ghcup set ghc ${GHC_VERSION} && \
     ghcup install hls ${HLS_VERSION}
-
-# Update cabal
-RUN cabal update --index-state='hackage.haskell.org $INDEX_STATE, cardano-haskell-packages $INDEX_STATE'
 
 # Add cabal to PATH
 RUN echo "export PATH=$PATH:/root/.cabal/bin" >> ~/.bashrc
@@ -97,15 +92,8 @@ RUN echo "export PATH=$PATH:/root/.cabal/bin" >> ~/.bashrc
 # Install lint and formatting tools
 RUN cabal install hlint fourmolu --installdir=/usr/local/bin
 
-# Set working directory and environment variables
-WORKDIR $WORKDIR
-
-# Copy project configuration files
-COPY cabal.project haskell.cabal ./
-
-# Install project dependencies
-RUN cabal build --only-dependencies --enable-tests --enable-benchmarks && \
-    cabal install --only-dependencies --enable-tests --enable-benchmarks
+# Update cabal
+RUN cabal update --index-state=${INDEX_STATE}
 
 # Set default commands for the image
 CMD ["bash"]
@@ -116,15 +104,14 @@ CMD ["bash"]
 
 FROM ghcr.io/lmrco/haskell-base:0.0.1.3 AS builder
 
-# Set the working directory
+# Set working directory
 WORKDIR $WORKDIR
 
 # Copy application source code
 COPY . .
 
 # Build and install the project
-RUN cabal build && \
-    cabal install
+RUN cabal build && cabal install
 
 # Set default commands for the image
 CMD ["bash"]
