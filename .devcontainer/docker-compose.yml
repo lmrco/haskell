@@ -1,0 +1,4 @@
+services:
+  haskell:
+    image: ghcr.io/lmrco/haskell-base:0.0.1.3
+

@@ -1,0 +1,8 @@
+curl -L https://nixos.org/nix/install | sh
+
+ghcup install ghc 8.10.7
+ghcup set ghc 8.10.7
+
+cabal clean
+cabal update
+cabal build all

@@ -23,7 +23,6 @@ cabal.project.local~
 *.hie
 *.svg
 
-# ----------------------------
 # Stack (if used later)
 # ----------------------------
 .stack-work/
